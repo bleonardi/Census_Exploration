@@ -1,0 +1,11 @@
+project:
+  type: website
+  output-dir: docs
+
+website:
+  title: "Census Exploration"
+
+format:
+  html:
+    theme: cosmo
+    toc: true

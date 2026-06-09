@@ -1,0 +1,137 @@
+---
+title: "Tri-State Census Exploration: OH, KY, IN"
+author: "Benedict Leonardi"
+format: 
+  html:
+    theme: flatly
+    toc: true
+execute:
+  warning: false
+  message: false
+---
+
+## Overview
+
+This document explores tract-level demographic data across Ohio, Kentucky, and Indiana. We use the `tidycensus` package to pull the data directly from the US Census Bureau, and `leaflet` to create an interactive map.
+
+## Setup and Data Retrieval
+
+First, we load our necessary libraries and fetch the American Community Survey (ACS) 5-year estimates. 
+
+*Note: You must have a Census API key installed. If you haven't done this, run `census_api_key("YOUR_KEY_HERE", install = TRUE)` in your R console once.*
+
+---
+title: "Tri-State Census Exploration: OH, KY, IN"
+author: "Benedict Leonardi"
+format: 
+  html:
+    theme: flatly
+    toc: true
+execute:
+  warning: false
+  message: false
+---
+
+## Overview
+
+This document explores tract-level demographic data across Ohio, Kentucky, and Indiana. We use the `tidycensus` package to pull the data and the `sf` package to calculate population and housing density per square mile.
+
+## Setup and Data Retrieval
+
+```{r setup-and-fetch}
+#| label: fetch-data
+library(tidycensus)
+library(tidyverse)
+library(sf)
+library(leaflet)
+
+# Define the variables
+census_vars <- c(
+  per_capita_income = "B19301_001",
+  housing_units     = "B25001_001",
+  population        = "B01003_001"
+)
+
+# Fetch the data
+tri_state_data <- get_acs(
+  geography = "cbg",
+  variables = census_vars,
+  state = c("OH", "KY", "IN"),
+  year = 2022, 
+  geometry = TRUE,
+  output = "wide"
+)
+
+# Transform the coordinate reference system to WGS84 for Leaflet
+map_data <- st_transform(tri_state_data, 4326)
+
+# --- NEW: Calculate Area and Density ---
+map_data <- map_data %>%
+  mutate(
+    # st_area() returns square meters. Divide by ~2.59 million to get square miles.
+    area_sqmi = as.numeric(st_area(geometry)) / 2589988.11,
+    
+    # Calculate densities
+    pop_density = populationE / area_sqmi,
+    housing_density = housing_unitsE / area_sqmi
+  )
+```
+
+## Interactive Map
+
+Below is an interactive map. Use the layer control box in the top right corner to switch between Population, Income per Capita, and Housing Units.
+
+```{r interactive-map}
+#| label: interactive-map
+#| out-width: "100%"
+#| out-height: "600px"
+
+# 1. Create color palettes
+pal_pop <- colorNumeric("viridis", domain = map_data$populationE, na.color = "transparent")
+pal_inc <- colorNumeric("magma", domain = map_data$per_capita_incomeE, na.color = "transparent")
+pal_house <- colorNumeric("plasma", domain = map_data$housing_unitsE, na.color = "transparent")
+
+# New palettes for density (using quantile binning can look better for highly skewed density data)
+pal_pop_dens <- colorQuantile("viridis", domain = map_data$pop_density, n = 7, na.color = "transparent")
+pal_house_dens <- colorQuantile("plasma", domain = map_data$housing_density, n = 7, na.color = "transparent")
+
+# 2. Build the Leaflet map
+leaflet(map_data) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  
+  # --- Original Layers ---
+  addPolygons(
+    fillColor = ~pal_pop(populationE), color = "white", weight = 0.5, fillOpacity = 0.7,
+    group = "Population (Count)",
+    label = ~paste0(NAME, "<br/>Pop: ", scales::comma(populationE)) %>% lapply(htmltools::HTML)
+  ) %>%
+  addPolygons(
+    fillColor = ~pal_inc(per_capita_incomeE), color = "white", weight = 0.5, fillOpacity = 0.7,
+    group = "Income per Capita",
+    label = ~paste0(NAME, "<br/>Income: ", scales::dollar(per_capita_incomeE)) %>% lapply(htmltools::HTML)
+  ) %>%
+  addPolygons(
+    fillColor = ~pal_house(housing_unitsE), color = "white", weight = 0.5, fillOpacity = 0.7,
+    group = "Housing Units (Count)",
+    label = ~paste0(NAME, "<br/>Housing: ", scales::comma(housing_unitsE)) %>% lapply(htmltools::HTML)
+  ) %>%
+  
+  # --- NEW: Density Layers ---
+  addPolygons(
+    fillColor = ~pal_pop_dens(pop_density), color = "white", weight = 0.5, fillOpacity = 0.7,
+    group = "Population Density",
+    label = ~paste0(NAME, "<br/>Pop Density: ", scales::comma(round(pop_density, 1)), " per sq mi") %>% lapply(htmltools::HTML)
+  ) %>%
+  addPolygons(
+    fillColor = ~pal_house_dens(housing_density), color = "white", weight = 0.5, fillOpacity = 0.7,
+    group = "Housing Density",
+    label = ~paste0(NAME, "<br/>Housing Density: ", scales::comma(round(housing_density, 1)), " per sq mi") %>% lapply(htmltools::HTML)
+  ) %>%
+  
+  # --- Dropdown Control ---
+  addLayersControl(
+    baseGroups = c("Population Density", "Housing Density", "Income per Capita", "Population (Count)", "Housing Units (Count)"),
+    options = layersControlOptions(collapsed = FALSE)
+  )
+```
+
