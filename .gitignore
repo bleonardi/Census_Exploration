@@ -9,6 +9,7 @@
 .Rproj.user/
 !README.md
 !docs/
+!docs/**
 !.nojekyll
 *.dat
 *.shp
@@ -20,3 +21,6 @@
 data/
 raw_census/
 shp/
+
+/.quarto/
+**/*.quarto_ipynb
