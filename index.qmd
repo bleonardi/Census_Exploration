@@ -12,30 +12,6 @@ execute:
 
 ## Overview
 
-This document explores tract-level demographic data across Ohio, Kentucky, and Indiana. We use the `tidycensus` package to pull the data directly from the US Census Bureau, and `leaflet` to create an interactive map.
-
-## Setup and Data Retrieval
-
-First, we load our necessary libraries and fetch the American Community Survey (ACS) 5-year estimates. 
-
-*Note: You must have a Census API key installed. If you haven't done this, run `census_api_key("YOUR_KEY_HERE", install = TRUE)` in your R console once.*
-
----
-title: "Tri-State Census Exploration: OH, KY, IN"
-author: "Benedict Leonardi"
-format: 
-  html:
-    theme: flatly
-    toc: true
-execute:
-  warning: false
-  message: false
----
-
-## Overview
-
-This document explores tract-level demographic data across Ohio, Kentucky, and Indiana. We use the `tidycensus` package to pull the data and the `sf` package to calculate population and housing density per square mile.
-
 ## Setup and Data Retrieval
 
 ```{r setup-and-fetch}
@@ -78,8 +54,6 @@ map_data <- map_data %>%
 ```
 
 ## Interactive Map
-
-Below is an interactive map. Use the layer control box in the top right corner to switch between Population, Income per Capita, and Housing Units.
 
 ```{r interactive-map}
 #| label: interactive-map
